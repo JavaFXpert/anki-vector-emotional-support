@@ -71,13 +71,13 @@ def main():
             # robot.behavior.drive_on_charger()
 
         elif event.expression == 4:
-            robot.say_text("Are you mad? Let me tell you a joke. Why couldn't the toilet paper cross the road?")
+            robot.say_text("Are you mad? Let me tell you a joke. Why did the chicken cross the road?")
             time.sleep(2)
             robot.behavior.set_eye_color(hue=0.0, saturation=0.6)
             robot.anim.play_animation('anim_eyepose_angry')
             time.sleep(1)
             robot.anim.play_animation('anim_keepaway_getout_frustrated_01')
-            robot.say_text("Because it got stuck in a crack.")
+            robot.say_text("To get to the other side.")
             robot.behavior.set_head_angle(MAX_HEAD_ANGLE)
             # robot.behavior.drive_on_charger()
 
