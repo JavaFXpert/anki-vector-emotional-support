@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-
-# Copyright (c) 2018 Anki, Inc.
+#
+# Copyright 2018 the original author or authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,56 +14,104 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Wait for Vector to see a face, and then print output to the console.
-
-This script demonstrates how to set up a listener for an event. It
-subscribes to event 'robot_observed_face'. When that event is dispatched,
-method 'on_robot_observed_face' is called, which prints text to the console.
-Vector will also say "I see a face" one time, and the program will exit when
-he finishes speaking.
-"""
 
 import functools
 import threading
 import time
+import random
 import anki_vector
 from anki_vector.events import Events
-from anki_vector.util import degrees
+from anki_vector.util import degrees, distance_mm, speed_mmps,  Angle
+from anki_vector.behavior import MIN_HEAD_ANGLE, MAX_HEAD_ANGLE
 
-said_text = False
+interacted = False
 
 
 def main():
     evt = threading.Event()
 
     def on_robot_observed_face(robot, event_type, event):
-        # print("Vector sees a face, event: ", event, "event_type: ", event_type)
-        print("Expression : ", event.expression)
+        global interacted
+        print('event.name: ', event.name)
+        if event.name == '':
+            return
+
+        touch_data = robot.touch.last_sensor_reading
+
+        if touch_data is not None:
+            being_touched = touch_data.is_being_touched
+
+        if interacted:
+            if not being_touched:
+                return
+
+        interacted = True
+
+        print("Vector sees a face, event: ", event.face_id)
+
+        robot.say_text("Hey")
+        robot.say_text(event.name)
+        robot.say_text("how are you feeling?")
+        time.sleep(1)
+
+        print("Expression: ", event.expression)
+
         if event.expression == 2:
-            robot.say_text("Awesome! You are happy, so let's dance!")
+            robot.behavior.set_eye_color(hue=0.17, saturation=1.00)
+            time.sleep(1)
+            robot.anim.play_animation('anim_pounce_success_02')
+            robot.say_text("You are making me happy, so let's dance!")
+            robot.behavior.set_head_angle(MAX_HEAD_ANGLE)
+            # robot.behavior.drive_on_charger()
+
         elif event.expression == 3:
+            robot.anim.play_animation('anim_pounce_success_02')
             robot.say_text("Oh my! What surprised you? Should I be scared?")
+            robot.behavior.set_head_angle(MAX_HEAD_ANGLE)
+            # robot.behavior.drive_on_charger()
+
         elif event.expression == 4:
-            robot.say_text("Are you mad, bro? Let me tell you a joke. Why did the chicken cross the road?")
+            robot.say_text("Are you mad? Let me tell you a joke. Why couldn't the toilet paper cross the road?")
             time.sleep(2)
-            robot.say_text("Because he could.")
+            robot.behavior.set_eye_color(hue=0.0, saturation=0.6)
+            robot.anim.play_animation('anim_eyepose_angry')
+            time.sleep(1)
+            robot.anim.play_animation('anim_keepaway_getout_frustrated_01')
+            robot.say_text("Because it got stuck in a crack.")
+            robot.behavior.set_head_angle(MAX_HEAD_ANGLE)
+            # robot.behavior.drive_on_charger()
+
         elif event.expression == 5:
-            robot.say_text("Cheer up buttercup. I love you!")
+            robot.anim.play_animation('anim_pounce_success_02')
+            robot.say_text("Cheer up buttercup!")
+            robot.behavior.set_head_angle(MIN_HEAD_ANGLE)
+            time.sleep(1)
+            robot.behavior.set_head_angle(MAX_HEAD_ANGLE)
+            # robot.behavior.drive_on_charger()
+
         elif event.expression == 1:
-            robot.say_text("Show some expression, super duck!")
+            robot.anim.play_animation('anim_pounce_success_02')
+            robot.say_text("Show some expression.")
+            robot.behavior.set_head_angle(MAX_HEAD_ANGLE)
+            # robot.behavior.drive_on_charger()
+
         else:
             print("unexpected expression", event.expression)
+            robot.say.text("How are you feeling?")
+            robot.anim.play_animation('anim_pounce_success_02')
+            robot.behavior.set_head_angle(MAX_HEAD_ANGLE)
+            # robot.behavior.drive_on_charger()
 
-
-        global said_text
-        if not said_text:
-            said_text = True
-            # robot.say_text("I see a face!")
-            evt.set()
+        # robot.anim.play_animation('anim_explorer_lookaround_01')
+        # if not interacted:
+        #     interacted = True
+        #     # robot.say_text("I see a face!")
+        #     evt.set()
 
     args = anki_vector.util.parse_command_args()
-    with anki_vector.Robot(args.serial, enable_face_detection=True) as robot:
 
+    with anki_vector.Robot(args.serial, enable_face_detection=True) as robot:
+        robot.behavior.drive_off_charger()
         robot.vision.enable_face_detection(detect_faces=True, estimate_expression=True)
 
         # If necessary, move Vector's Head and Lift to make it easy to see his face
@@ -75,11 +123,20 @@ def main():
 
         print("------ waiting for face events, press ctrl+c to exit early ------")
 
-        robot.say_text("How do you feel friend?!")
-
         try:
-            if not evt.wait(timeout=30):
-                print("------ Vector never saw your face! ------")
+            while True:
+                if not evt.wait(timeout=5):
+                    print("------ Do something ------")
+                    angle = random.randint(0, 181)
+                    dist = random.randint(0, 101)
+                    speed = random.randint(0, 101)
+                    rand = random.randint(0, 2)
+                    if rand == 0:
+                        robot.behavior.turn_in_place(degrees(angle))
+                    elif rand == 1:
+                        robot.behavior.drive_straight(distance_mm(dist), speed_mmps(speed), True)
+                    robot.behavior.set_head_angle(MAX_HEAD_ANGLE)
+
         except KeyboardInterrupt:
             pass
 
